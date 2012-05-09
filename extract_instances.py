@@ -72,14 +72,18 @@ class InstanceExtractor:
         for elem in ['quote', 'response']:
             rawtext = utils.ascii_only(meta_entry[elem])
             #text = TextObj(rawtext.decode('utf-8', 'replace'))
-            pos, tree, dep, coref = stanford_nlp.get_parses(rawtext, coreferences=True)
-            mapping = {'text': rawtext,
-                       'pos': pos,
-                       #'tree': tree, <- sets aren't serializable and i cant see any need for them
-                       'dep': dep,
-                       'coref': coref}
-            for key, value in mapping.iteritems():
-                feature_vector["%s_%s" % (elem, key)] = value
+            try:
+                pos, tree, dep, coref = stanford_nlp.get_parses(rawtext, coreferences=True)
+                mapping = {'text': rawtext,
+                           'pos': pos,
+                           #'tree': tree, <- sets aren't serializable and i cant see any need for them
+                           'dep': dep,
+                           'coref': coref}
+                for key, value in mapping.iteritems():
+                    feature_vector["%s_%s" % (elem, key)] = value
+            except Exception, e:
+                print e, key_id
+                return None
         return feature_vector
 
     def get_label(self, average_entry, threshold=0.5):
