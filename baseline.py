@@ -13,6 +13,8 @@ from progress_reporter.progress_reporter import ProgressReporter
 
 from grab_data.discussion import Dataset, results_root_dir
 
+from feature_extractor import get_features_by_type
+
 from jsondataset import JSONDataset
 
 """
@@ -109,46 +111,7 @@ class ClassificationBaseline:
         return feature_vector
 
 
-
-def get_basic_lengths(feature_vector, text, sentences, words):
-    feature_vector['length:num_characters']=len(text)
-    if len(words) != 0: feature_vector['length:ave_word']=len(''.join(words))/float(len(words))
-    if len(sentences) != 0: feature_vector['length:ave_sentence']=sum([len(sent) for sent in sentences])/float(len(sentences))
-    feature_vector['length:num_sentence']=len(sentences)
-    feature_vector['length:num_words']=len(words)
-
-def get_features_by_type(feature_vector, features=None, text_obj=None, dependency_list=None):
-    features = FEATURES if features == None else features
-
-    for feature in features:
-        if feature.startswith('bas'):
-            get_basic_lengths(feature_vector, text_obj.text, text_obj.sentences, text_obj.tokens)
-        """
-        elif feature.startswith('bi'):
-            get_ngrams(feature_vector, text_obj.tokens, n=2)
-        elif feature.startswith('init'):
-            get_initialisms(feature_vector, text_obj.tokens)
-        elif feature.startswith('gen'):
-            if dependency_list is not None:
-                get_dependency_features(feature_vector, dependency_list)
-        elif feature == 'LIWC':
-            get_LIWC(feature_vector, text_obj.text)
-        elif feature == 'liwc_dep':
-            if dependency_list is not None:
-                get_dependency_features(feature_vector, dependency_list, 'liwc')
-        elif feature.startswith('opin'):
-            if dependency_list is not None:
-                get_dependency_features(feature_vector, dependency_list, generalization='opinion')
-        elif feature.startswith('pos_dep'):
-            if dependency_list is not None:
-                get_dependency_features(feature_vector, dependency_list, generalization='pos')
-        elif feature.startswith('repeated_punct'):
-            get_repeated_punct(feature_vector, text_obj.text)
-        elif feature.startswith('uni'):
-            get_ngrams(feature_vector, text_obj.tokens)
-        """
-
 if( __name__ == '__main__'):
-    classification_baseline = ClassificationBaseline()
+    classification_baseline = ClassificationBaseline(classification_feature='sarcasm')
     classification_baseline.main()
     

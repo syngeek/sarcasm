@@ -1,6 +1,6 @@
 import re
 
-import word_category_counter
+from nlp import word_category_counter
 from collections import Counter
 from mpqa import mpqa
 from parsing import tokenizer
