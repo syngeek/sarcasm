@@ -1,4 +1,4 @@
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 from jsondataset import  JSONDataset
 
@@ -12,6 +12,8 @@ class GenerateEvents:
     def generate(self):
         max_length, max_chain = 0, []
         all_chains = defaultdict(int)
+        items = Counter()
+        counter = Counter()
         for qr_post in self.dataset.posts():
             quote = {'text': TextObj(qr_post['quote_text']),
                      'dep' : qr_post['quote_dep'],
@@ -23,25 +25,24 @@ class GenerateEvents:
                         'coref': qr_post['response_coref']}
 
             chains = defaultdict(list)
-            for coref in quote['coref']:
-                chains[coref['corefClusterID']].append(coref)
+            for type in [quote, response]:
+                for coref in type['coref']:
+                    chains[coref['corefClusterID']].append(coref)
 
-            for id, chain in chains.iteritems():
-                chain = map(lambda x: x['mentionSpan'], chain)
-                length = len(chain)
-            if length > max_length:
-                max_length, max_chain = length, chain
-            continue
+                for id, chain in chains.iteritems():
+                    chain = map(lambda x: x['mentionSpan'], chain)
 
-            tokens = zip(quote['text'].tokens, xrange(len(quote['text'].tokens)))
+                    counter.update({len(chain) : 1})
 
-            for coref in quote['coref']:
-                print quote['text'].tokens
-                print coref['startIndex'], coref['mentionSpan']
-                print filter(lambda x: x[0]==coref['mentionSpan'].split(' ')[0], tokens)
+                    length = len(chain)
+                if length > max_length:
+                    max_length, max_chain = length, chain
 
-            break
+
         print max_length, max_chain
+        total = float(sum(counter.values()))
+        for key, value in counter.most_common()[:10]:
+            print "%d : %.2f" % (key, value/total)
 if __name__ == '__main__':
     generate_events = GenerateEvents(dataset=JSONDataset('instances'))
     generate_events.generate()
