@@ -12,6 +12,9 @@ from machine_learning import weka_interface
 from progress_reporter.progress_reporter import ProgressReporter
 
 from grab_data.discussion import Dataset, results_root_dir
+
+from jsondataset import JSONDataset
+
 """
 FEATURES = ['basic_lengths', 'initialisms', 
             'gen_dep', 'LIWC', 'liwc_dep', 'opin_dep', 
@@ -19,7 +22,8 @@ FEATURES = ['basic_lengths', 'initialisms',
             'annotations']
 """
 FEATURES = ['annotations']
-class AgreementBaseline:
+
+class ClassificationBaseline:
     def __init__(self, classification_feature='sarcasm'):
         self.classification_feature = classification_feature
         self.task1 = {'agreement':['disagree','agree'], 'attack':['attacking','supportive'], 'fact-feeling':['feelings','fact'], 'nicenasty':['nasty','nice'], 'sarcasm':['sarcastic','not sarcastic']}
@@ -52,31 +56,36 @@ class AgreementBaseline:
         
     def get_feature_vectors(self, features=None):
         feature_vectors = dict()
-        dataset = Dataset('fourforums',annotation_list=['qr_dependencies'])
+        dataset = JSONDataset('instances')
+        for index, qr_post in enumerate(dataset.posts()):
+            print index, qr_post['sarcasm']
+            feature_vectors[index] = {'index': index, 'sarcasm': qr_post['sarcasm']}
 
-        for discussion in dataset.get_discussions(annotation_label='mechanical_turk'):
-
-            if 'qr_meta' not in discussion.annotations['mechanical_turk']: continue
-                    
-            dependencies = defaultdict(lambda:defaultdict(list))
-            if 'qr_dependencies' in discussion.annotations:
-                for dep in discussion.annotations['qr_dependencies']:
-                    dependencies[dep['qr_key']][dep['source']].append(dep)
-            
-            for key, entry in discussion.annotations['mechanical_turk']['qr_resample'].items():
-                if entry['resampled']==True:
-                    
-                    #some conditions
-                    if discussion.annotations['mechanical_turk']['qr_meta'][key]['quote_post_id']==None:
-                        continue
-                    if discussion.annotations['mechanical_turk']['qr_meta'][key]['task1 num annot']==None:
-                        continue
-                    
-                    feature_vector = self.extract_features(discussion, key, dependencies, features)
-                    if feature_vector is None: continue
-                    feature_vectors[key]=feature_vector
         return feature_vectors
-    
+        """
+                for discussion in dataset.get_discussions(annotation_label='mechanical_turk'):
+
+                    if 'qr_meta' not in discussion.annotations['mechanical_turk']: continue
+
+                    dependencies = defaultdict(lambda:defaultdict(list))
+                    if 'qr_dependencies' in discussion.annotations:
+                        for dep in discussion.annotations['qr_dependencies']:
+                            dependencies[dep['qr_key']][dep['source']].append(dep)
+
+                    for key, entry in discussion.annotations['mechanical_turk']['qr_resample'].items():
+                        if entry['resampled']==True:
+
+                            #some conditions
+                            if discussion.annotations['mechanical_turk']['qr_meta'][key]['quote_post_id']==None:
+                                continue
+                            if discussion.annotations['mechanical_turk']['qr_meta'][key]['task1 num annot']==None:
+                                continue
+
+                            feature_vector = self.extract_features(discussion, key, dependencies, features)
+                            if feature_vector is None: continue
+                            feature_vectors[key]=feature_vector
+        """
+
     def extract_features(self, discussion, key_id, dependencies, features=None):
         features = FEATURES if features is None else features
         meta_entry=discussion.annotations['mechanical_turk']['qr_meta'][key_id]
@@ -225,7 +234,8 @@ class AgreementBaseline:
                 print 'Accuracy:',experiment_accuracy
         pkl_file = open(arff_folder+'../weka_results.pkl','w')
         cPickle.dump(results, pkl_file, cPickle.HIGHEST_PROTOCOL)
+
 if( __name__ == '__main__'):
-    agreement_baseline = AgreementBaseline()
-    agreement_baseline.main()
+    classification_baseline = ClassificationBaseline()
+    classification_baseline.main()
     
