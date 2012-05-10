@@ -17,13 +17,14 @@ from feature_extractor import get_features_by_type
 
 from jsondataset import JSONDataset
 
-"""
+from generate_events import get_events
+
 FEATURES = ['basic_lengths', 'initialisms', 
             'gen_dep', 'LIWC', 'liwc_dep', 'opin_dep', 
             'pos_dep','repeated_punct', 'unigrams', 'meta',
             'annotations']
-"""
-FEATURES = ['basic_lengths']
+
+#FEATURES = ['unigrams']
 
 class ClassificationBaseline:
     def __init__(self, classification_feature='sarcasm'):
@@ -81,9 +82,10 @@ class ClassificationBaseline:
             text = TextObj(text.decode('utf-8', 'replace'))
 
             elem_features = dict()
-            dependencies = dict()
+            #dependencies = dict()
             get_features_by_type(elem_features, features, text)#, dependencies[key_id][elem])
-            
+            get_events(elem_features, qr_post=qr_post, post_type=elem)
+
             for key, value in elem_features.items():
                 feature_vector[elem+'_'+key]=value
 

@@ -21,13 +21,10 @@ class InstanceExtractor:
         for key in self.task1.keys():
             self.task1[key+'_unsure' ]=['unsure','sure']
 
-    def main(self, features=None):
-        with utils.random_guard(95064):
-            feature_vectors = self.get_feature_vectors(features)
-            print 'Derived features for', len(feature_vectors),'instances'
-            #feature_vectors = utils.balance(feature_vectors, self.classification_feature)
+    def main(self):
+        self.extract()
 
-    def get_feature_vectors(self, features=None):
+    def extract(self):
         feature_vectors = dict()
         dataset = Dataset('fourforums',annotation_list=['qr_dependencies'])
         current_index = 0
@@ -49,16 +46,12 @@ class InstanceExtractor:
                     if discussion.annotations['mechanical_turk']['qr_meta'][key]['task1 num annot']==None:
                         continue
 
-                    feature_vector = self.extract_features(discussion=discussion, key_id=key, dependencies=None)
-                    if feature_vector is None: continue
-
-                    feature_vectors[current_index]=feature_vector
-                    print 'Dumping instance : %d' % (current_index)
-                    json.dump(feature_vector, open('instances/%s.json' % current_index, 'w'))
+                    attributes = self.get_post_attributes(discussion=discussion, key_id=key, dependencies=None)
+                    if attributes is None: continue
+                    json.dump(attributes, open('instances/%s.json' % current_index, 'w'))
                     current_index += 1
-        return feature_vectors
 
-    def extract_features(self, discussion, key_id, dependencies):
+    def get_post_attributes(self, discussion, key_id, dependencies):
 
         meta_entry=discussion.annotations['mechanical_turk']['qr_meta'][key_id]
         average_entry=discussion.annotations['mechanical_turk']['qr_averages'][key_id]
@@ -88,9 +81,9 @@ class InstanceExtractor:
 
     def get_label(self, average_entry, threshold=0.5):
         if average_entry[self.classification_feature]>=threshold:
-            return self.task1[self.classification_feature][1]
-        elif average_entry[self.classification_feature]==0:
             return self.task1[self.classification_feature][0]
+        elif average_entry[self.classification_feature]==0:
+            return self.task1[self.classification_feature][1]
         else:
             return None
 

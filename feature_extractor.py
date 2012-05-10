@@ -5,12 +5,22 @@ from collections import Counter
 from mpqa import mpqa
 from parsing import tokenizer
 
+
 FEATURES = ['basic_lengths', 'bigrams', 'initialisms',
             'gen_dep', 'LIWC', 'liwc_dep', 'opin_dep',
             'pos_dep','repeated_punct', 'unigrams']
 
 stemmer = None
-def get_ngrams(feature_vector, tokens, prefix=None, n=1, add_null_tokens=False, binary_output=False, stem=False, use_lowercase=True):
+def get_ngrams(feature_vector,
+               tokens,
+               prefix=None,
+               n=1,
+               add_null_tokens=False,
+               binary_output=False,
+               stem=False,
+               use_lowercase=True,
+               corelex=True,
+               generalize=True):
     global stemmer
     if prefix == None:
         prefix = __get_measure(n)
@@ -23,6 +33,13 @@ def get_ngrams(feature_vector, tokens, prefix=None, n=1, add_null_tokens=False, 
             import nltk.stem
             stemmer = nltk.stem.PorterStemmer()
         tokens = [stemmer.stem(word) for word in tokens]
+
+    if corelex:
+        import corelex
+        tokens = [corelex.lookup(word) if ''!=corelex.lookup(word) else word for word in tokens]
+
+    if generalize:
+        tokens = ["_NUMERIC_" if re.search(r'\d', word) else word for word in tokens]
 
     if n==1:
         n_grams = tokens
