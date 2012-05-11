@@ -1,45 +1,90 @@
 from collections import defaultdict, Counter
-
+from nlp import stanford_nlp
 from jsondataset import  JSONDataset
 
 from nlp.text_obj import TextObj
-from pprint import pprint
 from corelex import lookup
+
+
+def match2(mention, dependencies, coreference=None):
+    mention = mention.split()
+    events = list()
+    negations = list()
+    items = ['animacy', 'gender', 'mentionType', 'number']
+    generalized_mention = "{}{}{}{}".format(*map(lambda key: coreference[key][:1], items))
+    for dependency in dependencies:
+        if dependency['relation'] == 'neg':
+            if (dependency['governor_pos'].startswith('JJ')
+                or dependency['governor_pos'].startswith('VB')):
+                negations.append(dependency['governor'])
+            else:
+                negations.append(dependency['dependent'])
+
+    for dependency in dependencies:
+        if dependency['dependent']==mention[-1]:
+            if dependency['governor_pos'].startswith('VB'):
+                event = "({}({}) {} _)".format(generalized_mention, dependency['dependent'], dependency['governor'])
+                if dependency['governor'] in negations:
+                    event = "NEG {}".format(event)
+                events.append(event)
+            continue
+        if dependency['governor']==mention[-1]:
+            if dependency['dependent'] not in mention:
+                if dependency['dependent_pos'].startswith('VB'):
+                    event = "(_ {} {}({}))".format(dependency['dependent'], generalized_mention, dependency['governor'])
+                    if dependency['dependent'] in negations:
+                        event = "NEG {}".format(event)
+                    events.append(event)
+    return events
 
 def match(mention, dependencies, stem_pos=False, corelex=False):
     mention = mention.split()
-    results = list()
+    #results = list()
     events = list()
     dependent_event = ['dependent', 'governor_pos']
     governor_event = ['dependent_pos', 'governor']
+    negations = list()
+
+    for dependency in dependencies:
+        if dependency['relation'] == 'neg':
+            if (dependency['governor_pos'].startswith('JJ')
+                or dependency['governor_pos'].startswith('VB')):
+                negations.append(dependency['governor'])
+            else:
+                negations.append(dependency['dependent'])
+
     for dependency in dependencies:
         if dependency['dependent']==mention[-1]:
             if (dependency['governor_pos'].startswith('JJ')
                 or dependency['governor_pos'].startswith('VB')):
-                results.append(dependency)
+                #results.append(dependency)
                 if stem_pos:
                     dependency['governor_pos'] = dependency['governor_pos'][:2]
                 if corelex:
                     dependent = lookup(dependency['dependent'])
                     if dependent != '':
                         dependency['dependent'] = dependent
-                event = "{} {} _".format(*map(lambda key: dependency[key], dependent_event))
+                event = "({} {} _)".format(*map(lambda key: dependency[key], dependent_event))
+                if dependency['governor'] in negations:
+                    event = "NEGATION {}".format(event)
                 events.append(event)
             continue
         if dependency['governor']==mention[-1]:
             if dependency['dependent'] not in mention:
                 if (dependency['dependent_pos'].startswith('JJ')
                     or dependency['dependent_pos'].startswith('VB')):
-                    results.append(dependency)
+                    #results.append(dependency)
                     if stem_pos:
                         dependency['dependent_pos'] = dependency['dependent_pos'][:2]
                     if corelex:
                         governor = lookup(dependency['governor'])
                         if governor != '':
                             dependency['governor'] = governor
-                    event = "_ {} {}".format(*map(lambda key: dependency[key], governor_event))
+                    event = "(_ {} {})".format(*map(lambda key: dependency[key], governor_event))
+                    if dependency['dependent'] in negations:
+                        event = "NEG {}".format(event)
                     events.append(event)
-    return results, events
+    return events
 
 def get_events(feature_vector, qr_post, post_type='quote', stem_pos=True, corelex=True):
     post = {'dep': qr_post['{}_dep'.format(post_type)],
@@ -51,12 +96,37 @@ def get_events(feature_vector, qr_post, post_type='quote', stem_pos=True, corele
         mentionSpan = coreference['mentionSpan']
         sentNum = coreference['sentNum']
         #t = mentionSpan, sentNum, startIndex
-        r, events = match(mention=mentionSpan,
+        events = match(mention=mentionSpan,
             dependencies=sentences_dependencies[sentNum - 1],
             stem_pos=stem_pos,
             corelex=corelex)
         for event in events:
             feature_vector[event] = True
+
+
+def parse_events(text, stem_pos=True, corelex=True, pass_coreference=False):
+    pos, tree, deps, corefs = stanford_nlp.get_parses(text, coreferences=True)
+
+    clusters = defaultdict(list)
+    for coref in corefs:
+        clusters[coref['corefClusterID']].append(coref)
+    chains = list()
+    for id, chain in clusters.iteritems():
+        chains.append(chain)
+
+    for chain in chains:
+        l = list()
+        for coreference in chain:
+            mention = coreference['mentionSpan']
+            sentence = coreference['sentNum']
+            events = match2(mention=mention,
+                dependencies=deps[sentence - 1],
+                coreference=coreference)
+            if [] != events:
+                l.append(events)
+        if [] != l:
+            print l
+
 
 class GenerateEvents:
 
@@ -87,16 +157,14 @@ class GenerateEvents:
                 mentionSpan = coreference['mentionSpan']
                 sentNum = coreference['sentNum']
                 t = mentionSpan, sentNum, startIndex
-                r, events = self.match(mention=mentionSpan, dependencies=sentences_dependencies[sentNum - 1])
-                if len(r) > 0:
+                events = match2(mention=mentionSpan, dependencies=sentences_dependencies[sentNum - 1], coreference=coreference)
+                if len(events) > 2:
                     #print mentionSpan, sentNum, startIndex
                     c.update(events)
-                    print events, r
-                    print coreference
+                    print events
+                    #print coreference
                     #for event in events:
                         #pprint(event, indent=4)
-
-            break
         print c.most_common(n=20)
 
     def count(self):
@@ -128,3 +196,8 @@ class GenerateEvents:
 if __name__ == '__main__':
     generate_events = GenerateEvents(dataset=JSONDataset('instances'))
     generate_events.chains()
+
+    text = """Barack Hussein Obama  is the 44th and current President of the United States. He is the first African
+    American to hold the office. Obama previously served as a United States Senator from Illinois, from January 2005
+    until he resigned following his victory in the 2008 presidential election."""
+    #parse_events(text)
